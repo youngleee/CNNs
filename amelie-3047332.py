@@ -40,7 +40,7 @@ def main():
     images, labels = next(data_iter)
     print(f"Batch size: {images.shape}, Labels: {labels}")
 
-    # functions to show an image, ist sehr optional
+    # optional
 
     def imshow(img):
         img = img / 2 + 0.5  # unnormalize
