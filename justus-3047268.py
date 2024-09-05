@@ -41,7 +41,8 @@ def main():
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])  # Normalisierung der Pixelwerte
 
     # Schritt 2: Lokalen Datensatz laden
-    datensatz = r'C:\Users\justu\PycharmProjects\WelgeCNNs\data'  # Pfad zum Datensatz
+    datensatz = './data'  # Pfad zum Datensatz
+
     trainingssatz = datasets.ImageFolder(root=datensatz, transform=transformation_anpassung)  # Laden des Datensatzes
 
     # Schritt 3: DataLoader erstellen
