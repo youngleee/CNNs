@@ -20,6 +20,9 @@ Projektname/
 ├── requirements.txt
 └── ...
 
+<img width="448" alt="image" src="https://github.com/user-attachments/assets/86711e49-dc21-4214-a4f4-6ca8188c6107">
+
+
 
 
 
