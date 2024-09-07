@@ -1,0 +1,6 @@
+Beschreibung und Klassifizierung des Problems 
+Unsere selbstgestellte Fragestellung hier war die Erkennung von Hunden- und Katzenfotos, und deren Klassifizierung als solche. Hierzu haben wir ein freiverfügbares Dataset auf Kaggle.com mit verschiedenen Hund und Katzenfotos genutzt. Dieses Dataset hat den Vorteil, dass die dazugehörigen Bilder verschiedene Pixelgrößen enthalten, dass die Tiere in verschiedenen Kontexten abgebildet wurden, als auch dass von beiden Tierarten verschiedene Rassen abgebildet sind. 
+
+
+Planung des Lösungswegs
+Um dieses Problem lösen zu können, haben wir ein CNN programmiert. Hierbei haben wir mithilfe der Pytorch Funktionen zunächst einwir mithilfe der Pytorch Funktionen. Hierzu haben wir ein CNN programmiert. Zunächst haben wir das Netzwerk definiert. Um dies durchführen zu können, mussten wir erst die Datenvorverarbeitung definieren, als auch aus dem Datensatz eine Teildatensatz definieren, mit welchen ein erster Forward Pass durch das programmierte Modell durchgeführt werden sollte. Im Anschluss muss das Modell noch trainiert werden mit einer eigenen Loss-Function. 
