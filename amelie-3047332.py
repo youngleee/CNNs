@@ -9,8 +9,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import random_split
 
+# Epochen -und Batchanzahl festlegen
 epoch_size = 3
 batch_size = 4
+
 # Festlegen, welches Gerät für das Training verwendet werden soll
 device = (
     "cuda" if torch.cuda.is_available()
@@ -19,14 +21,8 @@ device = (
 )
 
 
-def imshow(img):
-    img = img / 2 + 0.5  # Denormalisieren
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
-# Definiere ein benutzerdefiniertes Dataset, um beschädigte Bilder zu überspringen
+# beschädigte Bilder werden beim Laden des Datensatzes herausgefiltert
+# stellt neue Datenbasis dar, damit keine Fehler entstehen 
 class FilteredDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -37,22 +33,15 @@ class FilteredDataset(Dataset):
             except (UnidentifiedImageError, OSError):
                 print(f"Überspringe beschädigtes Bild: {self.dataset.samples[index][0]}")
 
+    # Anzahl der Bilder, die erfolgreich geladen wurden
     def __len__(self):
         return len(self.valid_samples)
 
+    # Zugriff auf Bild im Dataset
     def __getitem__(self, idx):
         return self.valid_samples[idx]
 
-
-def split_dataset(dataset, train_size):
-    total_size = len(dataset)
-    train_size = int(train_size * total_size)
-    val_size = total_size - train_size
-    # `random_split` direkt auf den Datensatz anwenden
-    train_set, val_set = random_split(dataset, [train_size, val_size])
-    return train_set, val_set
-
-
+# Erstellen des Neuronalen Netzwerkes (Feed Forward)
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
@@ -74,14 +63,14 @@ class NeuralNetwork(nn.Module):
 def main():
     print(f"Verwendetes Gerät: {device}")
 
-    # Schritt 1: Datenvorverarbeitung definieren
+    # Daten in das Netzwerk einladen und transformieren
     transformation_anpassung = transforms.Compose(
         [transforms.Resize((128, 128)),
          transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))] # um die Trainingsleistung zu verbessern
     )
 
-    # Schritt 2: Trainings- und Testdatensätze laden
+    # 
     datensatz = './data'
     # Verwende ImageFolder, um die Rohdaten zu laden
     trainingssatz = datasets.ImageFolder(root=datensatz, transform=transformation_anpassung)
@@ -89,18 +78,18 @@ def main():
     # Erstelle das gefilterte Dataset, das beschädigte Bilder überspringt
     gefiltertes_dataset = FilteredDataset(trainingssatz)
 
-    # Erstelle das Trainingsset
-    total_size = len(gefiltertes_dataset)
-    train_size = int(0.8 * total_size)
-    test_size = total_size - train_size
-
-    # `random_split` verwenden, um Datensätze aufzuteilen
+    # Trainings -und Testset
+    train_size = int(0.8 * len(gefiltertes_dataset))
+    test_size = len(gefiltertes_dataset) - train_size
+    
+    # randomsplit sortiert zufällig die Daten in die Trainings/Testsets
     train_set, test_set = random_split(gefiltertes_dataset, [train_size, test_size])
-
+    
     # Erstelle DataLoader für Training und Testen
     training_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
+    
     global classes
     classes = trainingssatz.classes
     print(f"Erkannte Klassen: {classes}")
@@ -141,9 +130,6 @@ def main():
     print("Modell wird nun getestet")
     dataiter = iter(test_loader)
     images, labels = next(dataiter)
-
-    imshow(torchvision.utils.make_grid(images))
-    print('GroundTruth: ', ' '.join(f'{classes[labels[j]]:5s}' for j in range(4)))
 
     # Modell laden
     model.load_state_dict(torch.load(path))
