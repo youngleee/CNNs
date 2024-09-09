@@ -3,15 +3,12 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 import torch.nn as nn
 import torch.optim as optim
-import torchvision
 from PIL import UnidentifiedImageError
-import numpy as np
-import matplotlib.pyplot as plt
 from torch.utils.data import random_split
 
-# Epochen -und Batchanzahl festlegen
-epoch_size = 3
-batch_size = 4
+# Epochen - und Batchanzahl festlegen
+epoch_size = 10
+batch_size = 16
 
 # Festlegen, welches Gerät für das Training verwendet werden soll
 device = (
@@ -22,7 +19,6 @@ device = (
 
 
 # beschädigte Bilder werden beim Laden des Datensatzes herausgefiltert
-# stellt neue Datenbasis dar, damit keine Fehler entstehen 
 class FilteredDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -33,33 +29,43 @@ class FilteredDataset(Dataset):
             except (UnidentifiedImageError, OSError):
                 print(f"Überspringe beschädigtes Bild: {self.dataset.samples[index][0]}")
 
-    # Anzahl der Bilder, die erfolgreich geladen wurden
     def __len__(self):
         return len(self.valid_samples)
 
-    # Zugriff auf Bild im Dataset
     def __getitem__(self, idx):
         return self.valid_samples[idx]
 
-# Erstellen des Neuronalen Netzwerkes (Feed Forward)
-class NeuralNetwork(nn.Module):
+
+# Erstellen eines Convolutional Neural Networks (CNN)
+class CNN(nn.Module):
     def __init__(self):
-        super().__init__()
-        self.flatten = nn.Flatten()
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(128 * 128 * 3, 512),
+        super(CNN, self).__init__()
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Linear(512, 512),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        )
+        self.fc_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128 * 16 * 16, 512),
             nn.ReLU(),
             nn.Linear(512, 1)
         )
 
     def forward(self, x):
-        x = self.flatten(x)
-        logits = self.linear_relu_stack(x)
-        return logits
+        x = self.conv_layers(x)
+        x = self.fc_layers(x)
+        return x
 
-
+# main-Funktion
 def main():
     print(f"Verwendetes Gerät: {device}")
 
@@ -67,38 +73,36 @@ def main():
     transformation_anpassung = transforms.Compose(
         [transforms.Resize((128, 128)),
          transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))] # um die Trainingsleistung zu verbessern
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]  # normalisieren, um die Trainingsleistung zu verbessern
     )
 
-    # 
     datensatz = './data'
-    # Verwende ImageFolder, um die Rohdaten zu laden
     trainingssatz = datasets.ImageFolder(root=datensatz, transform=transformation_anpassung)
 
-    # Erstelle das gefilterte Dataset, das beschädigte Bilder überspringt
+    # gefilterter Datensatz, der beschädigte Bilder überspringt
     gefiltertes_dataset = FilteredDataset(trainingssatz)
 
-    # Trainings -und Testset
+    # Trainings - und Testset
     train_size = int(0.8 * len(gefiltertes_dataset))
     test_size = len(gefiltertes_dataset) - train_size
-    
-    # randomsplit sortiert zufällig die Daten in die Trainings/Testsets
+    print(train_size, test_size)
+
+    # random_split sortiert zufällig die Daten in die Trainings/Testsets
     train_set, test_set = random_split(gefiltertes_dataset, [train_size, test_size])
-    
+
     # Erstelle DataLoader für Training und Testen
     training_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=2)
 
-    
-    global classes
+    # Klassen des Datensatzes definieren
     classes = trainingssatz.classes
     print(f"Erkannte Klassen: {classes}")
 
     # Modell erstellen und auf das Gerät verschieben
-    model = NeuralNetwork().to(device)
+    model = CNN().to(device)
     print(model)
 
-    # Loss function und Optimizer definieren
+    # Verlustfunktion und Optimizer definieren
     criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -116,8 +120,8 @@ def main():
             optimizer.step()
 
             running_loss += loss.item()
-            if i % 2000 == 1999:
-                print(f'[{epoch_size + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+            if i % 1000 == 999:
+                print(f'[{epoch_size + 1}, {i + 1:5d}] loss: {running_loss / 1000:.3f}')
                 running_loss = 0.0
 
     print('Training abgeschlossen')
@@ -128,15 +132,16 @@ def main():
 
     # Testen des Modells
     print("Modell wird nun getestet")
-    dataiter = iter(test_loader)
-    images, labels = next(dataiter)
+    data_test = iter(test_loader)
+    images, labels = next(data_test)
 
     # Modell laden
     model.load_state_dict(torch.load(path))
     outputs = model(images.to(device))
 
-    _, predicted = torch.max(outputs, 1)
-    print('Predicted: ', ' '.join(f'{classes[predicted[j]]:5s}' for j in range(4)))
+    # Vorhersagen treffen
+    predicted = torch.round(torch.sigmoid(outputs)).squeeze()
+    print('Predicted: ', ' '.join(f'{classes[int(predicted[j])]:5s}' for j in range(4)))
 
     # Netzwerkleistung auf dem gesamten Datensatz prüfen
     correct = 0
@@ -146,12 +151,13 @@ def main():
             images, labels = data
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
+            predicted = torch.round(torch.sigmoid(outputs)).squeeze()
             total += labels.size(0)
-            correct += (predicted == labels).float().sum().item()
-    print(f'Accuracy of the network on the test images: {100 * correct // total} %')
+            correct += (predicted == labels).sum().item()
+    print(f'Genauigkeit des Modells auf Basis von Beispielbildern {100 * correct / total:.2f} %')
 
 
 if __name__ == "__main__":
     main()
+
 
